@@ -1,0 +1,44 @@
+#######################################
+# Syntax Coloring Map For OperateTelegram
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+OperateTelegram KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+status  KEYWORD2
+data    KEYWORD2
+servoList   KEYWORD2
+
+clear   KEYWORD2
+add     KEYWORD2
+analyzeData KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+TELE_STX    LITERAL1
+TELE_ETX    LITERAL1
+TELE_STS_WAIT_START LITERAL1
+TELE_STS_RECVING    LITERAL1
+TELE_STS_COMPLETED  LITERAL1
+
+TELE_COMMAND_AUTO   LITERAL1
+TELE_COMMAND_MANUAL LITERAL1
+
+TELE_ACTION_FOWARD_BIT  LITERAL1
+TELE_ACTION_BACK_BIT    LITERAL1
+TELE_ACTION_LEFT_BIT    LITERAL1
+TELE_ACTION_RIGHT_BIT   LITERAL1
+
+TELE_KEY_SPEED      LITERAL1
+TELE_KEY_SERVO      LITERAL1
+TELE_KEY_ID         LITERAL1
+TELE_KEY_ANGLE      LITERAL1
