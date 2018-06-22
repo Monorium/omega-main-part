@@ -100,7 +100,7 @@ void loopServoControl()
   {
     if (jServos[id].isMovement)
     {
-      int angle = jServos[id].moveNext();
+      int pulse = jServos[id].moveNext();
 
       if (!SERVO_CONF[id][S_CONF_IS_ARDUINO])
       {
@@ -108,7 +108,7 @@ void loopServoControl()
         DynamicJsonBuffer jsonBuffer;
         JsonObject &json = jsonBuffer.createObject();
         json["pin"] = jServos[id].pin;
-        json["angle"] = angle;
+        json["angle"] = jServos[id].pulseToAngle(pulse);
         String tele;
         json.printTo(tele);
         Serial1.write(TELE_STX);
@@ -159,25 +159,25 @@ void loopServoControlAuto()
 void setupServoConfig()
 {
   String SD_DATA_SERVO_CONF[SERVO_CNT] = {
-      "1,12,0,90",
+      "0,12,0,90",
       "1,2,0,90",
       "1,3,0,90",
       "1,4,0,90",
       "1,5,0,90",
       "1,6,0,90",
       "1,7,0,90",
-      "0,16,0,160",
-      "0,17,0,160",
+      "1,8,0,160",
+      "0,2,0,160",
+      "1,10,0,160",
+      "1,9,0,160",
       "0,5,0,160",
+      "1,13,0,160",
       "0,18,0,160",
       "0,19,0,160",
       "0,21,0,160",
       "0,12,0,160",
       "0,14,0,160",
-      "0,27,0,160",
-      "0,26,0,160",
-      "0,25,0,160",
-      "0,33,0,160"};
+      "0,27,0,160"};
 
   String SD_DATA_AUTO_FB_ANGLES[SERVO_CNT] = {
       "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
