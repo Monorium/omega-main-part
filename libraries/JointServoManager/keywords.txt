@@ -1,0 +1,31 @@
+#######################################
+# Syntax Coloring Map For JointServoManager
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+JointServoManager   KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+loadConfig          KEYWORD2
+isLoaded            KEYWORD2
+servoList           KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+CS_SDCARD           LITERAL1
+MAX_SERVO_CNT       LITERAL1
+SERVO_CONFIG_NAME   LITERAL1
+CONFIG_SERVO_DEFINE             LITERAL1
+CONFIG_SERVO_DEFINE_ID          LITERAL1
+CONFIG_SERVO_DEFINE_ISMYSERVO   LITERAL1
+CONFIG_SERVO_DEFINE_PIN         LITERAL1
+CONFIG_SERVO_DEFINE_ADJUST      LITERAL1
+CONFIG_SERVO_DEFINE_DEFAULT     LITERAL1

@@ -1,6 +1,8 @@
 #ifndef JOINTSERVO_H_INCLUDE
 #define JOINTSERVO_H_INCLUDE
 
+#include <Servo.h>
+
 const int SERVO_PULS_MIN = 540;
 const int SERVO_PULS_MAX = 2400;
 const int SERVO_ANGLE_MIN = 0;
@@ -24,6 +26,8 @@ public:
   boolean isMovement = false;
   Angles angles;
   int pin = 0;
+  int adjAngle = 0;
+  int defAngle = 0;
 
   void attach(int pinNo);
   void moveNow(int angle);

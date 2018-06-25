@@ -1,6 +1,9 @@
 #ifndef OMEGA_H_INCLUDE
 #define OMEGA_H_INCLUDE
 
+const int MAINTE_PIN = 12;
+const int BUFFER_SIZE = 64;
+
 struct AutoMode_t
 {
     boolean isAutoMode = false;

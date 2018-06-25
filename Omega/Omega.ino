@@ -1,59 +1,46 @@
 #include <ArduinoJson.h>
-#include <Servo.h>
 #include <Scheduler.h>
-#include "Omega.h"
-#include "JointServo.h"
+#include "JointServoManager.h"
 #include "OperateTelegram.h"
-
-const int SERVO_CNT = 19;
-const int MAINTE_PIN = 12;
-const int S_CONF_IS_ARDUINO = 0;
-const int S_CONF_PIN = 1;
-const int S_CONF_ADJ_ANGLE = 2;
-const int S_CONF_DEF_ANGLE = 3;
-
-const int BUFFER_SIZE = 64;
-
-int SERVO_CONF[SERVO_CNT][4];
-int SERVO_AUTO_FB_ANGLES[SERVO_CNT][16];
-int SERVO_AUTO_LR_ANGLES[SERVO_CNT][16];
+#include "Omega.h"
 
 OperateTelegram opeTele;
-JointServo jServos[SERVO_CNT];
-AutoModeStatus autoStatus;
+JointServoManager servoMan;
 
+// 初期化処理
 void setup()
 {
+  // コンソール通信初期化
   Serial.begin(115200);
   Serial.println(F("setup start"));
 
+  // ESP32通信初期化
   Serial1.begin(115200);
   Serial.println(F("serial begin"));
+  delay(3000);
 
-  setupServoConfig();
-
-  for (int id = 0; id < SERVO_CNT; id++)
+  // サーボ管理クラス初期化
+  servoMan.loadConfig();
+  Serial.println(servoMan.servoList.size());
+  for (int id = 0; id < servoMan.servoList.size(); id++)
   {
-    jServos[id].isMyServo = SERVO_CONF[id][S_CONF_IS_ARDUINO];
-    jServos[id].attach(SERVO_CONF[id][S_CONF_PIN]);
-    jServos[id].moveNow(SERVO_CONF[id][S_CONF_DEF_ANGLE]);
-    char buf[BUFFER_SIZE];
-    sprintf(buf, "S%d is initialize", SERVO_CONF[id][S_CONF_PIN]);
-    Serial.println(buf);
+    // ESP33の場合は制御しておく
+    if (!servoMan.servoList.at(id).isMyServo)
+      controlEspServo(servoMan.servoList.at(id).pin, servoMan.servoList.at(id).defAngle);
   }
 
+  // 各種タイマー起動
+  // ESP32受信電文処理
   Scheduler.startLoop(loopSerialProc);
   Serial.println(F("start loop serial"));
-
+  // サーボ制御処理（スピード制御のため）
   Scheduler.startLoop(loopServoControl);
   Serial.println(F("start loop control"));
-
-  Scheduler.startLoop(loopServoControlAuto);
-  Serial.println(F("start loop auto control"));
 
   Serial.println(F("ready"));
 }
 
+// メインループ（ESP32通信処理）
 void loop()
 {
   if (opeTele.status != TELE_STS_COMPLETED)
@@ -71,15 +58,15 @@ void loop()
   yield();
 }
 
+// ESP32受信電文処理
 void loopSerialProc()
 {
   if (opeTele.status == TELE_STS_COMPLETED)
   {
-    autoStatus.isAutoMode = false;
     for (int i = 0; i < opeTele.servoList.size(); i++)
     {
       int speed = constrain(opeTele.servoList.at(i).speed, SERVO_CTRL_SPEED_MIN, SERVO_CTRL_SPEED_MAX);
-      int servoID = constrain(opeTele.servoList.at(i).servoId, 0, SERVO_CNT - 1);
+      int servoID = constrain(opeTele.servoList.at(i).servoId, 0, servoMan.servoList.size() - 1);
       int angle = constrain(opeTele.servoList.at(i).angle, SERVO_ANGLE_MIN, SERVO_ANGLE_MAX);
       reserveServoControl(servoID, angle, speed);
     }
@@ -88,164 +75,40 @@ void loopSerialProc()
   yield();
 }
 
+// サーボ制御処理への予約処理
 int reserveServoControl(int id, int angle, int speed)
 {
-  int cnt = jServos[id].move(angle, speed);
-  return cnt;
+  return servoMan.servoList.at(id).move(angle, speed);
 }
 
+// サーボ制御処理（スピード制御のため）
 void loopServoControl()
 {
-  for (int id = 0; id < SERVO_CNT; id++)
+  for (int id = 0; id < servoMan.servoList.size(); id++)
   {
-    if (jServos[id].isMovement)
+    if (servoMan.servoList.at(id).isMovement)
     {
-      int pulse = jServos[id].moveNext();
-
-      if (!SERVO_CONF[id][S_CONF_IS_ARDUINO])
-      {
-        //request ESP-32
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject &json = jsonBuffer.createObject();
-        json["pin"] = jServos[id].pin;
-        json["angle"] = jServos[id].pulseToAngle(pulse);
-        String tele;
-        json.printTo(tele);
-        Serial1.write(TELE_STX);
-        Serial1.print(tele);
-        Serial1.write(TELE_ETX);
-
-        Serial.println("Request esp32");
-      }
-      char buf[BUFFER_SIZE];
-      sprintf(buf, "now > S%d : %d", id, jServos[id].angles.nowPulse);
-      Serial.println(buf);
+      int pulse = servoMan.servoList.at(id).moveNext();
+      if (!servoMan.servoList.at(id).isMyServo)
+        controlEspServo(servoMan.servoList.at(id).pin, servoMan.servoList.at(id).pulseToAngle(pulse));
     }
   }
   delay(SERVO_CTRL_INTERVAL);
 }
 
-void loopServoControlAuto()
+// ESP32へサーボ制御要求を送信
+void controlEspServo(int pin, int angle)
 {
-  if (autoStatus.isAutoMode)
-  {
-    int cnt = 0;
-    for (int id = 0; id < SERVO_CNT; id++)
-    {
-      int angle = SERVO_AUTO_FB_ANGLES[id][autoStatus.index];
-      int _cnt = reserveServoControl(id, angle, autoStatus.speed);
-      if (cnt < _cnt)
-        cnt = _cnt;
-    }
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject &json = jsonBuffer.createObject();
+  json["pin"] = pin;
+  json["angle"] = angle;
+  String tele;
+  json.printTo(tele);
+  Serial1.write(TELE_STX);
+  Serial1.print(tele);
+  Serial1.write(TELE_ETX);
 
-    if (autoStatus.isForward)
-    {
-      autoStatus.index++;
-      if (autoStatus.index > 16)
-        autoStatus.index = 0;
-    }
-    else if (autoStatus.isBack)
-    {
-      autoStatus.index--;
-      if (autoStatus.index < 0)
-        autoStatus.index = 16;
-    }
-    delay(cnt * SERVO_CTRL_INTERVAL);
-  }
-  else
-    delay(100);
-}
-
-void setupServoConfig()
-{
-  String SD_DATA_SERVO_CONF[SERVO_CNT] = {
-      "0,12,0,90",
-      "1,2,0,90",
-      "1,3,0,90",
-      "1,4,0,90",
-      "1,5,0,90",
-      "1,6,0,90",
-      "1,7,0,90",
-      "1,8,0,160",
-      "0,2,0,160",
-      "1,10,0,160",
-      "1,9,0,160",
-      "0,5,0,160",
-      "1,13,0,160",
-      "0,18,0,160",
-      "0,19,0,160",
-      "0,21,0,160",
-      "0,12,0,160",
-      "0,14,0,160",
-      "0,27,0,160"};
-
-  String SD_DATA_AUTO_FB_ANGLES[SERVO_CNT] = {
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,100,104,107,110,100,96,93,90,78,72,68,65,78,83,87",
-      "90,80,76,73,70,80,84,87,90,100,104,107,110,100,96,93",
-      "90,103,108,112,115,103,97,93,90,80,76,73,70,80,84,87",
-      "90,103,108,112,115,103,97,93,90,80,76,73,70,80,84,87",
-      "90,80,76,73,70,80,84,87,90,100,104,107,110,100,96,93",
-      "90,100,104,107,110,100,96,93,90,78,72,68,65,78,83,87",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160"};
-
-  String SD_DATA_AUTO_LR_ANGLES[SERVO_CNT] = {
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "90,90,90,90,90,90,90,90,90,90,90,90,90,90,90,90",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160",
-      "160,160,160,160,160,160,160,160,160,160,160,160,160,160,160,160"};
-
-  for (int id = 0; id < SERVO_CNT; id++)
-  {
-    split(SD_DATA_SERVO_CONF[id], SERVO_CONF[id], ',');
-    split(SD_DATA_AUTO_FB_ANGLES[id], SERVO_AUTO_FB_ANGLES[id], ',');
-    split(SD_DATA_AUTO_LR_ANGLES[id], SERVO_AUTO_LR_ANGLES[id], ',');
-  }
-}
-
-int split(String dist, int *dest, char delim)
-{
-  int cnt = 0;
-  int idx = 0;
-  for (cnt = 0; cnt < 255; cnt++)
-  {
-    int delimIdx = dist.indexOf(delim, idx);
-    String str;
-    if (delimIdx < 0)
-      str = dist.substring(idx);
-    else
-      str = dist.substring(idx, delimIdx);
-    dest[cnt] = str.toInt();
-
-    if (delimIdx < 0)
-      break;
-
-    idx = delimIdx + 1;
-  }
-
-  return cnt + 1;
+  Serial.print(F("Request esp32 -> "));
+  Serial.println(tele);
 }

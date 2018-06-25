@@ -1,11 +1,12 @@
 #include <Arduino.h>
-#include <Servo.h>
 #include "JointServo.h"
 
+// サーボクラス
 JointServo::JointServo()
 {
 }
 
+// PINアタッチ
 void JointServo::attach(int pinNo)
 {
   pin = pinNo;
@@ -13,6 +14,7 @@ void JointServo::attach(int pinNo)
     servo.attach(pin);
 }
 
+// 角度制御（即時）
 void JointServo::moveNow(int angle)
 {
   isMovement = false;
@@ -21,6 +23,7 @@ void JointServo::moveNow(int angle)
     servo.writeMicroseconds(angles.nowPulse);
 }
 
+// 角度制御（予約制御）
 // 何回動くと目標座標に到達予定か返す
 int JointServo::move(int angle, int speed)
 {
@@ -40,6 +43,7 @@ int JointServo::move(int angle, int speed)
   return (int)(abs(safix / angles.onePulse) + 0.5);
 }
 
+// 次の角度取得
 int JointServo::moveNext()
 {
   if (isMovement) {
@@ -61,12 +65,14 @@ int JointServo::moveNext()
   return angles.nowPulse;
 }
 
+// pulseから角度を計算
 int JointServo::angleToPulse(int angle)
 {
   int _angle = constrain(angle, SERVO_ANGLE_MIN, SERVO_ANGLE_MAX);
   return (int)map(_angle, SERVO_ANGLE_MIN, SERVO_ANGLE_MAX, SERVO_PULS_MIN, SERVO_PULS_MAX);
 }
 
+// 角度からpulseを計算
 int JointServo::pulseToAngle(int pulse)
 {
   int _pulse = constrain(pulse, SERVO_PULS_MIN, SERVO_PULS_MAX);

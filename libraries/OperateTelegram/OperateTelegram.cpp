@@ -50,7 +50,7 @@ boolean OperateTelegram::analyzeData()
   JsonArray &servoes = jsonData.get<JsonArray>(TELE_KEY_SERVO);
   for (int i = 0; i < servoes.size(); i++)
   {
-    ServoControlData servoData;
+    ServoControlData servoData = ServoControlData();
     servoData.speed = speed;
     servoData.servoId = servoes[i][TELE_KEY_ID];
     servoData.angle = servoes[i][TELE_KEY_ANGLE];
