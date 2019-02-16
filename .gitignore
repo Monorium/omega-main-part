@@ -1,0 +1,4 @@
+.vscode/*
+!.vscode/arduino.json
+!.vscode/settings.json
+!.vscode/launch.json

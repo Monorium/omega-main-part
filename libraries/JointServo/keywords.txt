@@ -1,0 +1,31 @@
+#######################################
+# Syntax Coloring Map For JointServo
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+JointServo      KEYWORD1
+Angles          KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+isMyServo       KEYWORD2
+isMovement      KEYWORD2
+angles          KEYWORD2
+pin             KEYWORD2
+adjAngle        KEYWORD2
+defAngle        KEYWORD2
+attach          KEYWORD2
+moveNow         KEYWORD2
+move            KEYWORD2
+moveNext        KEYWORD2
+angleToPulse    KEYWORD2
+pulseToAngle    KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
